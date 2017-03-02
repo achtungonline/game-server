@@ -2,6 +2,7 @@ import Match from "core/src/core/match.js";
 import forEach from "core/src/core/util/for-each.js";
 import * as compression from "core/src/core/util/compression.js";
 import * as random from "core/src/core/util/random.js";
+import * as gsf from "core/src/core/game-state-functions.js";
 import net from "net"
 
 var TIME_BETWEEN_GAMES = 5000; // milliseconds
@@ -15,7 +16,7 @@ var messageFunctions = {
 }
 
 var matchData = {}
-var socket = net.connect(3000);
+var socket = net.connect({ host: "Mathiass-MBP", port: 3002 });
 
 socket.on("connect", () => {
     console.log("Connected to lobby server")
@@ -30,18 +31,24 @@ socket.on("close", () => {
     matchData = {};
 });
 
+var s = "";
 socket.on("data", (data) => {
-    var message = JSON.parse(data)
-    console.log("Message type: ", message.type)
-    if (messageFunctions[message.type]) {
-        messageFunctions[message.type](message)
-    } else {
-        console.log("Unsupported message type: ", message.type)
+    s = s + data.toString();
+    var lines = s.split(/\r?\n/);
+    for (var i = 0; i < lines.length - 1; i++) {
+        var message = JSON.parse(lines[i]);
+        console.log("Receiving: ", message.type)
+        if (messageFunctions[message.type]) {
+            messageFunctions[message.type](message)
+        } else {
+            console.log("Unsupported message type: ", message.type)
+        }
     }
+    s = lines[lines.length - 1];
 });
 
 function startMatch(lobbyId, matchConfig) {
-    console.log("Start match: ", lobbyId);
+    matchConfig.map = gsf.createMapRectangle(matchConfig.map);
     var match = Match({matchConfig});
     matchData[lobbyId] = {
         match,
@@ -57,15 +64,13 @@ function startGame(lobbyId) {
         activeMatch.game = activeMatch.match.prepareNextGame(seed);
         sendMessage({
             type: "game_start",
+            gameState: activeMatch.game.gameState,
             lobbyId
         });
         activeMatch.previousUpdateTime = Date.now()
-        activeMatch.previousClientUpdateTime = activeMatch.previousUpdateTime - 2*CLIENT_UPDATE_TICK;
+        activeMatch.previousClientSendTime = activeMatch.previousUpdateTime - 2*CLIENT_UPDATE_TICK;
+        activeMatch.previousClientGameTime = 0;
         activeMatch.nextUpdateTime = activeMatch.previousUpdateTime + UPDATE_TICK;
-        activeMatch.wormPathSegmentIndex = {};
-        activeMatch.gameEventCount = 0;
-        activeMatch.powerUpEventCount = 0;
-        activeMatch.effectEventCount = 0;
         activeMatch.game.start();
         setTimeout(updateGame.bind(null, lobbyId), UPDATE_TICK);
     }
@@ -79,13 +84,14 @@ function updateGame(lobbyId) {
         if (game.isActive()) {
             var deltaTime = (updateStartTime - activeMatch.previousUpdateTime) / 1000;
             game.update(deltaTime);
-            if (updateStartTime - activeMatch.previousClientUpdateTime >= CLIENT_UPDATE_TICK || !game.isActive()) {
+            if (updateStartTime - activeMatch.previousClientSendTime >= CLIENT_UPDATE_TICK || !game.isActive()) {
                 sendMessage({
                     type: "game_update",
                     lobbyId,
-                    data: extractGameChanges(lobbyId)
+                    data: gsf.getGameStateChanges(game.gameState, activeMatch.previousClientGameTime)
                 });
-                activeMatch.previousClientUpdateTime = updateStartTime
+                activeMatch.previousClientUpdateTime = updateStartTime;
+                activeMatch.previousClientGameTime = game.gameState.gameTime;
             }
         }
         activeMatch.previousUpdateTime = updateStartTime;
@@ -100,55 +106,6 @@ function updateGame(lobbyId) {
             setTimeout(updateGame.bind(null, lobbyId), sleepTime);
         } else {
             gameOver(lobbyId);
-        }
-    }
-}
-
-function extractGameChanges(lobbyId) {
-    var activeMatch = matchData[lobbyId];
-    if (activeMatch) {
-        var gameState = activeMatch.game.gameState;
-        var wormPathSegments = {};
-        forEach(gameState.wormPathSegments, function(segments, id) {
-            if (activeMatch.wormPathSegmentIndex[id] === undefined) {
-                activeMatch.wormPathSegmentIndex[id] = 0;
-            }
-            if (segments.length > 0) {
-                wormPathSegments[id] = [];
-                var pathSegment;
-                while (true) {
-                    pathSegment = segments[activeMatch.wormPathSegmentIndex[id]];
-                    pathSegment.index = activeMatch.wormPathSegmentIndex[id];
-                    wormPathSegments[id].push(compression.compressWormSegment(pathSegment));
-                    if (activeMatch.wormPathSegmentIndex[id] < segments.length - 1) {
-                        activeMatch.wormPathSegmentIndex[id]++;
-                    } else {
-                        break;
-                    }
-                }
-            }
-        });
-        var gameEvents = [];
-        while (activeMatch.gameEventCount < gameState.gameEvents.length) {
-            gameEvents.push(gameState.gameEvents[activeMatch.gameEventCount]);
-            activeMatch.gameEventCount++;
-        }
-        var powerUpEvents = [];
-        while (activeMatch.powerUpEventCount < gameState.powerUpEvents.length) {
-            powerUpEvents.push(gameState.powerUpEvents[activeMatch.powerUpEventCount]);
-            activeMatch.powerUpEventCount++;
-        }
-        var effectEvents = [];
-        while (activeMatch.effectEventCount < gameState.effectEvents.length) {
-            effectEvents.push(gameState.effectEvents[activeMatch.effectEventCount]);
-            activeMatch.effectEventCount++;
-        }
-        return {
-            gameTime: gameState.gameTime,
-            wormPathSegments,
-            gameEvents,
-            powerUpEvents,
-            effectEvents
         }
     }
 }
@@ -170,7 +127,7 @@ function gameOver(lobbyId) {
             });
         } else {
             sendMessage({
-                type: "game_count_down",
+                type: "game_countdown",
                 lobbyId,
                 duration: TIME_BETWEEN_GAMES
             })
@@ -180,6 +137,6 @@ function gameOver(lobbyId) {
 }
 
 function sendMessage(message) {
-    console.log("Sending: " + JSON.stringify(message));
-    socket.write(JSON.stringify(message) + "\n");
+    console.log("Sending: " + message.type);
+    console.log(socket.write(JSON.stringify(message) + "\n"));
 }

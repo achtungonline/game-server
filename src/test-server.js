@@ -4,49 +4,49 @@ var startMatchMessage = {
     type: "start_match",
     lobbyId: 3,
     matchConfig: {
-    "players": [
-    {
-      "type": "human",
-      "colorId": "blue",
-      "name": "Gustav Vasa",
-      "left": "A",
-      "right": "S",
-      "id": "player_0"
-    },
-    {
-      "type": "bot",
-      "colorId": "pink",
-      "name": "My hat man gandi",
-      "left": "DOWN",
-      "right": "RIGHT",
-      "id": "player_1"
-    }
-  ],
-  "map": {
-    "name": "Square 500",
-    "shape": {
-      "type": "rectangle",
-      "boundingBox": {
-        "width": 500,
-        "height": 500
+        "players": [
+        {
+          "type": "human",
+          "colorId": "blue",
+          "name": "Gustav Vasa",
+          "left": "A",
+          "right": "S",
+          "id": "player_0"
+        },
+        {
+          "type": "bot",
+          "colorId": "pink",
+          "name": "My hat man gandi",
+          "left": "DOWN",
+          "right": "RIGHT",
+          "id": "player_1"
+        }
+      ],
+      "map": {
+        "name": "Square 500",
+        "shape": {
+          "type": "rectangle",
+          "boundingBox": {
+            "width": 500,
+            "height": 500
+          },
+          "area": 250000,
+          "x": 10,
+          "y": 10,
+          "maxX": 510,
+          "maxY": 510,
+          "centerX": 260,
+          "centerY": 260,
+          "width": 500,
+          "height": 500
+        },
+        "borderWidth": 10,
+        "blockingShapes": [],
+        "width": 520,
+        "height": 520
       },
-      "area": 250000,
-      "x": 10,
-      "y": 10,
-      "maxX": 510,
-      "maxY": 510,
-      "centerX": 260,
-      "centerY": 260,
-      "width": 500,
-      "height": 500
-    },
-    "borderWidth": 10,
-    "blockingShapes": [],
-    "width": 520,
-    "height": 520
-  },
-  "maxScore": 5
-}
+      "maxScore": 5
+    }
 }
 
 var server = net.createServer((socket) => {
