@@ -53,7 +53,12 @@ function startMatch(lobbyId, matchConfig) {
     matchData[lobbyId] = {
         match,
         game: null
-    }
+    };
+    sendMessage({
+        type: "match_start",
+        matchConfig: matchConfig,
+        lobbyId
+    });
     startGame(lobbyId)
 }
 
