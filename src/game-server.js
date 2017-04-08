@@ -12,11 +12,18 @@ var CLIENT_UPDATE_TICK = 45;
 var messageFunctions = {
     start_match: (message) => {
         startMatch(message.lobbyId, message.matchConfig);
+    },
+    player_steering: (message) => {
+        console.log('message:', message);
+        var game = matchData[message.lobbyId].game;
+        if(game) {
+            gsf.setPlayerSteering(game.gameState, message.playerId, message.steering);
+        }
     }
-}
+};
 
 var matchData = {}
-var socket = net.connect({ host: "Mathiass-MBP", port: 3002 });
+var socket = net.connect({host: "localhost", port: 3002});
 
 socket.on("connect", () => {
     console.log("Connected to lobby server")
@@ -73,7 +80,7 @@ function startGame(lobbyId) {
             lobbyId
         });
         activeMatch.previousUpdateTime = Date.now()
-        activeMatch.previousClientSendTime = activeMatch.previousUpdateTime - 2*CLIENT_UPDATE_TICK;
+        activeMatch.previousClientSendTime = activeMatch.previousUpdateTime - 2 * CLIENT_UPDATE_TICK;
         activeMatch.previousClientGameTime = 0;
         activeMatch.nextUpdateTime = activeMatch.previousUpdateTime + UPDATE_TICK;
         activeMatch.game.start();
@@ -117,7 +124,7 @@ function updateGame(lobbyId) {
 
 function gameOver(lobbyId) {
     var activeMatch = matchData[lobbyId];
-    if (activeMatch) { 
+    if (activeMatch) {
         var match = activeMatch.match;
         match.addFinishedGameState(activeMatch.game.gameState);
         sendMessage({
@@ -142,6 +149,6 @@ function gameOver(lobbyId) {
 }
 
 function sendMessage(message) {
-    console.log("Sending: " + message.type);
-    console.log(socket.write(JSON.stringify(message) + "\n"));
+    // console.log("Sending: " + message.type);
+    socket.write(JSON.stringify(message) + "\n");
 }
