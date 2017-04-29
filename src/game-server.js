@@ -11,6 +11,7 @@ var CLIENT_UPDATE_TICK = 45;
 
 var messageFunctions = {
     start_match: (message) => {
+        console.log(message);
         startMatch(message.lobbyId, message.matchConfig);
     },
     player_steering: (message) => {
